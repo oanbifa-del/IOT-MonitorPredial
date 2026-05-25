@@ -1,251 +1,92 @@
-# 🏛️ SHM IoT - Sistema de Monitoramento Estrutural
+# SHM IoT - Sistema de Monitoramento Estrutural
 
-**Structural Health Monitoring (SHM)** - Solução IoT para monitoramento contínuo de estruturas em tempo real usando sensores wireless e MQTT.
+## O Projeto
 
-## 📋 Sobre o Projeto
+Sistema embarcado para monitoramento da saude estrutural (inclinacao, temperatura, vento) usando ESP32 com dois sensores MPU6050 que medem a inclinacao em 4 eixos: Norte, Sul, Leste, Oeste.
 
-Sistema embarcado baseado em **ESP32** que monitora a saúde estrutural de edifícios, pontes e estruturas críticas através de:
+Aplicacoes: monitoramento de edificios, pontes, torres e estruturas criticas.
 
-- **Aceleração e Inclinação (4 faces)**: 2x MPU6050 (acelerômetro + giroscópio)
-- **Temperatura e Umidade**: DHT22
-- **Velocidade do Vento**: Sensor analógico
-- **Alertas em Tempo Real**: LED + Buzzer
-- **Visualização Local**: Display OLED 128x64
-- **Transmissão de Dados**: MQTT para backend
+## Componentes
 
-## 🎯 Características
+| Componente        | Funcao                              | Pino       |
+| ----------------- | ----------------------------------- | ---------- |
+| ESP32             | Microcontrolador principal          | -          |
+| MPU6050 (1)       | Acelerometro Leste/Oeste (I2C 0x68)  | GPIO 21/22 |
+| MPU6050 (2)       | Acelerometro Norte/Sul (I2C 0x69)    | GPIO 21/22 |
+| DHT22             | Sensor temp/umidade                 | GPIO 15    |
+| OLED SSD1306      | Display info (I2C)                  | GPIO 21/22 |
+| Potenciometro     | Simula vento (0-150 km/h)           | GPIO 34    |
+| LED               | Alarme visual (vermelho)            | GPIO 4     |
+| Buzzer            | Alarme sonoro                       | GPIO 5     |
 
-✅ Leitura multi-sensor sincronizada  
-✅ Filtro anti-ruído (suavização exponencial)  
-✅ Validação automática de riscos  
-✅ Alertas críticos visual + sonoro  
-✅ Publicação JSON estruturada via MQTT  
-✅ Display OLED com status em tempo real  
-✅ Compatível com Wokwi (simulação online)
+## Fluxo de Dados
 
-## 🛠️ Stack Tecnológico
+Sensores (ESP32) -> MQTT (broker.emqx.io:1883) -> mqtt_backend.py -> SQLite -> main.py -> dashboard.py
 
-| Componente       | Tecnologia                 |
-| ---------------- | -------------------------- |
-| Microcontrolador | ESP32 DevKit C v4          |
-| Simulação        | [Wokwi](https://wokwi.com) |
-| Protocolo        | MQTT (broker.emqx.io)      |
-| Serialização     | ArduinoJson                |
-| Sensores         | DHT22, 2x MPU6050          |
-| Display          | OLED SSD1306               |
+## Como Usar
 
-## 📂 Estrutura do Repositório
+1) Simulacao no Wokwi
+- Editar sketch.ino com WiFi local
+- Abrir diagram.json em https://wokwi.com
 
+2) Backend
 ```
-shm_iot_project/
-├── README.md                  # Este arquivo
-├── sketch.ino                 # Código principal do ESP32
-├── diagram.json               # Simulação Wokwi
-├── libraries.txt              # Dependências Arduino
-├── COMPONENTES.md             # Detalhes dos sensores
-├── MQTT_TOPICS.md             # Documentação MQTT
-├── SETUP_WOKWI.md             # Como executar na simulação
-├── API.md                     # Estrutura JSON
-├── informações.md             # Documentação adicional
-├── mqtt_backend.py            # (Backend Python) Subscriber MQTT
-├── dashboard.py               # (Backend Python) Dashboard Flask
-└── main.py                    # (Backend Python) Orquestrador
-```
-
-## 🚀 Quick Start
-
-### 1️⃣ Executar na Simulação (Wokwi)
-
-1. Acesse [wokwi.com](https://wokwi.com)
-2. Crie um novo projeto ESP32
-3. Copie `sketch.ino` para o editor
-4. Carregue `diagram.json` (Wokwi → "Load diagram")
-5. Adicione as bibliotecas do `libraries.txt` (Wokwi → Library Manager)
-6. Clique em ▶️ Play
-
-### 2️⃣ Conetar ao MQTT
-
-Se estiver rodando o backend local:
-
-```bash
-# Terminal 1: Subscriber MQTT
+pip install -r libraries.txt
 python mqtt_backend.py
-
-# Terminal 2: Dashboard
-python dashboard.py
-
-# Terminal 3: Consumir dados
 python main.py
 ```
 
-## 📊 Fluxo de Dados
-
+3) Dashboard
 ```
-ESP32 [sketch.ino]
-  ↓
-  ├─ Lê sensores (DHT, 2x MPU6050, Vento)
-  ├─ Aplica filtro anti-ruído
-  ├─ Valida contra limites críticos
-  ├─ Atualiza OLED
-  └─ Publica JSON MQTT
-        ↓
-   MQTT Broker (emqx.io)
-        ↓
-   Backend Python
-        ├─ mqtt_backend.py (subscribe)
-        └─ dashboard.py (visualização)
+streamlit run dashboard.py
 ```
 
-## 🎛️ Configuração Padrão
+## Configuracoes Importantes
 
-### Limites de Risco
-
-| Parâmetro           | Limite    | Ação      |
-| ------------------- | --------- | --------- |
-| Inclinação X        | > 5.0°    | 🚨 Alerta |
-| Inclinação Y        | > 5.0°    | 🚨 Alerta |
-| Velocidade do Vento | > 90 km/h | 🚨 Alerta |
-| Temperatura         | > 45°C    | 🚨 Alerta |
-
-### Filtro Anti-Ruído
-
+sketch.ino (no topo):
 ```
-Inclinação_filtrada = (0.2 × dado_novo) + (0.8 × histórico)
-ALFA = 0.2  // Ajuste para mais/menos suavização
+#define WIFI_SSID "Seu-WiFi"
+#define WIFI_PASS "senha"
+#define DEVICE_NAME "SHM_NODE"
 ```
 
-## 🔌 Pinagem ESP32
-
-| Pino        | Dispositivo    | Função              |
-| ----------- | -------------- | ------------------- |
-| GPIO 15     | DHT22          | Temperatura/Umidade |
-| GPIO 21     | 2x MPU6050 SDA | Aceleração (I2C)    |
-| GPIO 22     | 2x MPU6050 SCL | Aceleração (I2C)    |
-| GPIO 34     | Potenciômetro  | Sensor de Vento     |
-| GPIO 4      | LED Vermelho   | Alerta Visual       |
-| GPIO 5      | Buzzer         | Alerta Sonoro       |
-| I2C (21/22) | OLED SSD1306   | Display             |
-
-## 📡 Payload MQTT
-
-```json
-{
-  "device_id": "SHM_NODE_RJ_01",
-  "ambiente": {
-    "temperatura": 28.5,
-    "umidade": 65.3,
-    "vento_kmh": 25.4
-  },
-  "estrutura": {
-    "inclinacao_x": 2.1,
-    "inclinacao_y": -1.8,
-    "inclinacao_leste": 2.1,
-    "inclinacao_oeste": 0.0,
-    "inclinacao_norte": 0.0,
-    "inclinacao_sul": 1.8
-  },
-  "alertas": {
-    "status_global": "SEGURO"
-  }
-}
+main.py:
+```
+DATABASE_URL = "sqlite:///./shm_database.db"
 ```
 
-## 🔧 Customização
+## Metricas Monitoradas
 
-### Mudar Frequência de Envio
+- Inclinacao 4-Eixos: Leste, Oeste, Norte, Sul (0-90 deg)
+- Temperatura: -40 a 80 C
+- Umidade: 0-100%
+- Vento: 0-150 km/h (simulado)
 
-Em `sketch.ino`, linha ~120:
+## Sistema de Alertas
 
-```cpp
-delay(2000);  // 2 segundos entre envios
-```
+Alarme dispara quando:
+- Inclinacao > 5 deg
+- Vento > 90 km/h
+- Temperatura > 45°C
 
-### Ajustar Limites de Risco
+LED vermelho acende + Buzzer soa
 
-```cpp
-const float MAX_INCLINACAO = 5.0;    // em graus
-const float MAX_VENTO = 90.0;         // em km/h
-const float MAX_TEMP = 45.0;          // em Celsius
-```
+## Arquivos Principais
 
-### Mudar Broker MQTT
+- sketch.ino (firmware ESP32)
+- mqtt_backend.py (listener MQTT)
+- main.py (API)
+- dashboard.py (Streamlit)
+- diagram.json (Wokwi)
+- shm_database.db (SQLite)
 
-```cpp
-const char* mqtt_server = "broker.emqx.io";
-const char* mqtt_topic = "shm/projeto_arthur/sensores";
-```
+## Melhorias Implementadas
 
-## 📚 Documentação Detalhada
+- WiFi configuravel (sem hardcoding)
+- Device ID automatico (usa MAC address)
+- Reconexao MQTT com backoff exponencial
+- Retry do DHT22 (tolerancia a falhas)
 
-- **[COMPONENTES.md](./COMPONENTES.md)** - Especificações dos sensores
-- **[MQTT_TOPICS.md](./MQTT_TOPICS.md)** - Tópicos e QoS
-- **[SETUP_WOKWI.md](./SETUP_WOKWI.md)** - Guia passo-a-passo da simulação
-- **[API.md](./API.md)** - Estrutura completa do JSON
+## Autor
 
-## ⚙️ Dependências Arduino
-
-```
-DHT sensor library          // Leitura DHT22
-Adafruit MPU6050            // Aceleração
-Adafruit Unified Sensor     // Framework Adafruit
-ArduinoJson                 // Serialização JSON
-PubSubClient                // Cliente MQTT
-Adafruit GFX Library        // Renderização OLED
-Adafruit SSD1306            // Display OLED
-```
-
-## 🐛 Troubleshooting
-
-### OLED não exibe nada
-
-- Verifique pinos I2C (GPIO 21/22)
-- Confirme endereço 0x3C no código
-
-### Sensor DHT22 retorna NaN
-
-- Verifique conexão GPIO 15
-- Confirme alimentação (3.3V)
-
-### MQTT não conecta
-
-- Verifique WiFi (SSID: "Wokwi-GUEST")
-- Teste broker em `broker.emqx.io:1883`
-
-### Filtro muito suave/sensível
-
-- Aumente `ALFA` para menos suavização (ex: 0.3)
-- Diminua `ALFA` para mais suavização (ex: 0.1)
-
-## 🚀 Próximas Melhorias
-
-- [ ] Armazenamento de histórico em EEPROM
-- [ ] Calibração automática de sensores
-- [ ] Notificações por e-mail de alertas críticos
-- [ ] Dashboard web interativo com gráficos
-- [ ] Múltiplos nós sincronizados
-- [ ] Previsão de falhas com ML
-
-## 📄 Licença
-
-MIT License - Veja [LICENSE](./LICENSE) para detalhes
-
-## 👨‍💻 Autor
-
-**Arthur**
-
-- GitHub: [@arthurquo](https://github.com/arthurquo)
-- Projeto: SHM IoT Node RJ-01
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Por favor:
-
-1. Fork o repositório
-2. Crie uma branch (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
----
-
-**⭐ Se este projeto foi útil, considere dar uma estrela!**
+Arthur - Projeto Faculdade

@@ -96,6 +96,15 @@ if not df_completo.empty:
         c6.metric("Temp. Interna", f"{registro_atual['temp']:.1f} °C")
         c7.metric("Umidade", f"{registro_atual['umidade']:.1f} %")
 
+        st.markdown("### 🧭 Diagnóstico por Face da Estrutura")
+        f_norte, f_sul, f_leste, f_oeste = st.columns(4)
+        inc_x = float(registro_atual['inc_x'])
+        inc_y = float(registro_atual['inc_y'])
+        f_norte.metric("Norte", f"{max(inc_y, 0):.2f} º")
+        f_sul.metric("Sul", f"{abs(min(inc_y, 0)):.2f} º")
+        f_leste.metric("Leste", f"{max(inc_x, 0):.2f} º")
+        f_oeste.metric("Oeste", f"{abs(min(inc_x, 0)):.2f} º")
+
         st.markdown("### 📈 Análise de Tendências e Deslocamento")
         g1, g2, g3 = st.columns([2, 2, 1.5]) # Dividiu em 3 colunas para acomodar o novo gráfico espacial
         

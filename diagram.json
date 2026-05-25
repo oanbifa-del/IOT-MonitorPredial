@@ -33,6 +33,7 @@
     [ "esp:GND", "mpu2:GND", "black", [ "v0" ] ],
     [ "esp:21", "mpu2:SDA", "blue", [ "v0" ] ],
     [ "esp:22", "mpu2:SCL", "yellow", [ "v0" ] ],
+    [ "esp:3V3", "mpu2:AD0", "magenta", [ "v0" ] ],
 
     [ "esp:3V3", "pot1:VCC", "red", [ "v0" ] ],
     [ "esp:GND", "pot1:GND", "black", [ "v0" ] ],

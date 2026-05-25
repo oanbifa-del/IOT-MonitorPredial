@@ -7,28 +7,29 @@
 #include <ArduinoJson.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <math.h>
 
-// Configurações WiFi (EDITAR AQUI!)
+// Configuracoes WiFi (EDITAR AQUI!)
 #define WIFI_SSID "Wokwi-GUEST"
 #define WIFI_PASS ""
 
-// Configurações Device
+// Configuracoes Device
 #define DEVICE_NAME "SHM_NODE"
 
-// Configurações Pinos
+// Configuracoes Pinos
 #define DHTPIN 15
 #define DHTTYPE DHT22
 #define PINO_VENTO 34
 #define PINO_LED_ALARME 4
 #define PINO_BUZZER 5
 
-// Configurações OLED
+// Configuracoes OLED
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// Configurações MQTT
+// Configuracoes MQTT
 const char *mqtt_server = "broker.emqx.io";
 const char *mqtt_topic = "shm/projeto_arthur/sensores";
 
@@ -43,68 +44,91 @@ const float MAX_INCLINACAO = 5.0;
 const float MAX_VENTO = 90.0;
 const float MAX_TEMP = 45.0;
 
-// Variáveis para o Filtro de Suavização (Anti-ruído)
+// Variaveis para o Filtro de Suavizacao (Anti-ruido)
 float inc_x_filtrado = 0; // Leste/Oeste
 float inc_y_filtrado = 0; // Norte/Sul
-const float ALFA = 0.2;   // Pega 20% do dado novo e 80% do histórico
+const float ALFA = 0.2;   // Pega 20% do dado novo e 80% do historico
+
+String device_id;
 
 void setup_wifi()
 {
   delay(10);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   int tentativas = 0;
-  while (WiFi.status() != WL_CONNECTED && tentativas < 20) {
+  while (WiFi.status() != WL_CONNECTED && tentativas < 20)
+  {
     delay(500);
     tentativas++;
   }
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED)
+  {
     Serial.println("WiFi conectado!");
-  } else {
+  }
+  else
+  {
     Serial.println("Falha ao conectar WiFi");
   }
+}
+
+String get_device_id()
+{
+  String mac = WiFi.macAddress();
+  if (mac.length() == 0)
+  {
+    mac = "SEM_MAC";
+  }
+  return String(DEVICE_NAME) + "-" + mac;
 }
 
 void reconnect_mqtt()
 {
   int tentativas = 0;
-  while (!client.connected() && tentativas < 5) {
-    String clientId = DEVICE_NAME "-" + String(WiFi.macAddress());
-    if (client.connect(clientId.c_str())) {
+  while (!client.connected() && tentativas < 5)
+  {
+    if (client.connect(device_id.c_str()))
+    {
       Serial.println("MQTT conectado!");
       return;
-    } else {
-      int delay_ms = min(5000 * (tentativas + 1), 30000);
-      Serial.print("Tentativa ");
-      Serial.print(tentativas + 1);
-      Serial.print("/5 - Aguardando ");
-      Serial.print(delay_ms / 1000);
-      Serial.println("s...");
-      delay(delay_ms);
-      tentativas++;
     }
+    int delay_ms = min(5000 * (tentativas + 1), 30000);
+    Serial.print("Tentativa ");
+    Serial.print(tentativas + 1);
+    Serial.print("/5 - Aguardando ");
+    Serial.print(delay_ms / 1000);
+    Serial.println("s...");
+    delay(delay_ms);
+    tentativas++;
   }
 }
 
-// Função auxiliar para ler DHT com retry
-float readDHTTemperature(int retries = 3) {
-  for (int i = 0; i < retries; i++) {
+// Funcao auxiliar para ler DHT com retry
+float readDHTTemperature(int retries = 3)
+{
+  for (int i = 0; i < retries; i++)
+  {
     float value = dht.readTemperature();
-    if (!isnan(value)) return value;
+    if (!isnan(value))
+      return value;
     delay(50);
   }
   return NAN;
 }
 
-float readDHTHumidity(int retries = 3) {
-  for (int i = 0; i < retries; i++) {
+float readDHTHumidity(int retries = 3)
+{
+  for (int i = 0; i < retries; i++)
+  {
     float value = dht.readHumidity();
-    if (!isnan(value)) return value;
+    if (!isnan(value))
+      return value;
     delay(50);
   }
   return NAN;
 }
 
 void setup()
+{
   Serial.begin(115200);
   pinMode(PINO_LED_ALARME, OUTPUT);
   pinMode(PINO_BUZZER, OUTPUT);
@@ -122,8 +146,11 @@ void setup()
   display.display();
 
   setup_wifi();
+  device_id = get_device_id();
   client.setServer(mqtt_server, 1883);
   dht.begin();
+
+  Wire.begin();
 
   if (!mpu_leste_oeste.begin(0x68))
   {
@@ -151,7 +178,7 @@ void loop()
   mpu_leste_oeste.getEvent(&a_lo, &g_lo, &temp_lo);
   mpu_norte_sul.getEvent(&a_ns, &g_ns, &temp_ns);
 
-  // 2. Aplicação do Filtro Anti-ruído (Suaviza a linha no gráfico)
+  // 2. Aplicacao do Filtro Anti-ruido (Suaviza a linha no grafico)
   inc_x_filtrado = (ALFA * a_lo.acceleration.x) + ((1.0 - ALFA) * inc_x_filtrado);
   inc_y_filtrado = (ALFA * a_ns.acceleration.y) + ((1.0 - ALFA) * inc_y_filtrado);
   float inc_x = inc_x_filtrado;
@@ -167,10 +194,10 @@ void loop()
   float umidade_display = isnan(umidade) ? 0 : umidade;
   float vento_kmh = map(analogRead(PINO_VENTO), 0, 4095, 0, 150);
 
-  // 3. Validação de Risco
-  bool alerta_inclinacao = (abs(inc_x) > MAX_INCLINACAO) || (abs(inc_y) > MAX_INCLINACAO);
+  // 3. Validacao de Risco
+  bool alerta_inclinacao = (fabs(inc_x) > MAX_INCLINACAO) || (fabs(inc_y) > MAX_INCLINACAO);
   bool alerta_vento = (vento_kmh > MAX_VENTO);
-  bool status_critico = alerta_inclinacao || alerta_vento || (temp > MAX_TEMP);
+  bool status_critico = alerta_inclinacao || alerta_vento || (temp_display > MAX_TEMP);
 
   if (status_critico)
   {
@@ -215,7 +242,7 @@ void loop()
 
   // 5. Montar e Enviar JSON
   StaticJsonDocument<512> doc;
-  doc["device_id"] = "SHM_NODE_RJ_01";
+  doc["device_id"] = device_id;
 
   JsonObject ambiente = doc.createNestedObject("ambiente");
   ambiente["temperatura"] = temp_display;
