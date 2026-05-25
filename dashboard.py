@@ -50,10 +50,19 @@ if not df_completo.empty:
         delta_x = f"{registro_atual['inc_x'] - df.iloc[1]['inc_x']:.2f} º" if len(df) > 1 else None
         delta_y = f"{registro_atual['inc_y'] - df.iloc[1]['inc_y']:.2f} º" if len(df) > 1 else None
         
-        c1.metric("Balanço Eixo X", f"{registro_atual['inc_x']:.2f} º", delta=delta_x, delta_color="inverse")
-        c2.metric("Balanço Eixo Y", f"{registro_atual['inc_y']:.2f} º", delta=delta_y, delta_color="inverse")
+        c1.metric("Inclinação Leste/Oeste", f"{registro_atual['inc_x']:.2f} º", delta=delta_x, delta_color="inverse")
+        c2.metric("Inclinação Norte/Sul", f"{registro_atual['inc_y']:.2f} º", delta=delta_y, delta_color="inverse")
         c3.metric("Vel. Vento", f"{registro_atual['vento']:.1f} km/h")
         c4.metric("Temp. Interna", f"{registro_atual['temp']} °C")
+
+        st.markdown("### 🧭 Diagnóstico por Face da Estrutura")
+        f_norte, f_sul, f_leste, f_oeste = st.columns(4)
+        inc_x = float(registro_atual['inc_x'])
+        inc_y = float(registro_atual['inc_y'])
+        f_norte.metric("Norte", f"{max(inc_y, 0):.2f} º")
+        f_sul.metric("Sul", f"{abs(min(inc_y, 0)):.2f} º")
+        f_leste.metric("Leste", f"{max(inc_x, 0):.2f} º")
+        f_oeste.metric("Oeste", f"{abs(min(inc_x, 0)):.2f} º")
 
         st.markdown("### 📈 Análise de Tendências e Deslocamento")
         g1, g2, g3 = st.columns([2, 2, 1.5]) # Dividiu em 3 colunas para acomodar o novo gráfico espacial
@@ -91,6 +100,5 @@ if not df_completo.empty:
 else:
     st.info("Aguardando conexão e recebimento do primeiro pacote de dados...")
 
-time.slice = 2
 time.sleep(2)
 st.rerun()

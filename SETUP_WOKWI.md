@@ -90,6 +90,8 @@ Wokwi Home
 | Adafruit Unified Sensor | `adafruit unified` |
 | ArduinoJson             | `arduinojson`      |
 | PubSubClient            | `pubsubclient`     |
+| Adafruit GFX Library    | `adafruit gfx`     |
+| Adafruit SSD1306        | `ssd1306`          |
 
 ### 3.2 Verificar Adições
 
@@ -101,6 +103,8 @@ Adafruit MPU6050
 Adafruit Unified Sensor
 ArduinoJson
 PubSubClient
+Adafruit GFX Library
+Adafruit SSD1306
 ```
 
 ---
@@ -114,7 +118,8 @@ O arquivo `diagram.json` já contém as conexões corretas:
 | Componente    | GPIO  | Pino    | Tipo   |
 | ------------- | ----- | ------- | ------ |
 | DHT22         | 15    | SDA     | 1-Wire |
-| MPU6050       | 21/22 | SDA/SCL | I2C    |
+| MPU6050 #1 (L/O) | 21/22 | SDA/SCL | I2C |
+| MPU6050 #2 (N/S) | 21/22 | SDA/SCL | I2C |
 | Potenciômetro | 34    | SIG     | ADC    |
 | LED           | 4     | IN      | GPIO   |
 | Buzzer        | 5     | IN      | GPIO   |
@@ -135,7 +140,7 @@ O arquivo `diagram.json` já contém as conexões corretas:
 │      │    │     │    │   │   │   │     │
 │      ├────┼─────┼────┤   │   │   │     │
 │      ▼    ▼     ▼    ▼   ▼   ▼   ▼     │
-│    [DHT22] [MPU6050] [POT] [LED] [BUZ] │
+│ [DHT22] [MPU6050 #1] [MPU6050 #2] [POT] │
 │    [OLED SSD1306]                      │
 └─────────────────────────────────────────┘
 ```
@@ -189,7 +194,8 @@ Conectando WiFi...
 WiFi conectado!
 Inicializando sensores...
 DHT22: OK
-MPU6050: OK
+MPU6050 #1 (0x68): OK
+MPU6050 #2 (0x69): OK
 OLED: OK
 MQTT: Conectando a broker.emqx.io:1883...
 MQTT: Conectado!
@@ -204,8 +210,8 @@ O display mostrará:
 ```
 STATUS: SEGURO
 ───────────────
-Inc X: 1.2 °
-Inc Y: 0.8 °
+Inc L/O: 1.2 °
+Inc N/S: 0.8 °
 Vento: 25.4 km/h
 Temp : 28.5 C
 ```
@@ -215,7 +221,7 @@ Temp : 28.5 C
 - **LED vermelho**: Acenderá se status = CRITICO
 - **Buzzer**: Tocará se status = CRITICO
 - **Potenciômetro**: Mova o slider para simular vento
-- **DHT22/MPU6050**: Valores gerados automaticamente
+- **DHT22/2x MPU6050**: Valores gerados automaticamente
 
 ---
 

@@ -6,7 +6,7 @@
 
 Sistema embarcado baseado em **ESP32** que monitora a saúde estrutural de edifícios, pontes e estruturas críticas através de:
 
-- **Aceleração e Inclinação**: MPU6050 (acelerômetro + giroscópio)
+- **Aceleração e Inclinação (4 faces)**: 2x MPU6050 (acelerômetro + giroscópio)
 - **Temperatura e Umidade**: DHT22
 - **Velocidade do Vento**: Sensor analógico
 - **Alertas em Tempo Real**: LED + Buzzer
@@ -31,7 +31,7 @@ Sistema embarcado baseado em **ESP32** que monitora a saúde estrutural de edif�
 | Simulação        | [Wokwi](https://wokwi.com) |
 | Protocolo        | MQTT (broker.emqx.io)      |
 | Serialização     | ArduinoJson                |
-| Sensores         | DHT22, MPU6050             |
+| Sensores         | DHT22, 2x MPU6050          |
 | Display          | OLED SSD1306               |
 
 ## 📂 Estrutura do Repositório
@@ -83,7 +83,7 @@ python main.py
 ```
 ESP32 [sketch.ino]
   ↓
-  ├─ Lê sensores (DHT, MPU6050, Vento)
+  ├─ Lê sensores (DHT, 2x MPU6050, Vento)
   ├─ Aplica filtro anti-ruído
   ├─ Valida contra limites críticos
   ├─ Atualiza OLED
@@ -119,8 +119,8 @@ ALFA = 0.2  // Ajuste para mais/menos suavização
 | Pino        | Dispositivo   | Função              |
 | ----------- | ------------- | ------------------- |
 | GPIO 15     | DHT22         | Temperatura/Umidade |
-| GPIO 21     | MPU6050 SDA   | Aceleração (I2C)    |
-| GPIO 22     | MPU6050 SCL   | Aceleração (I2C)    |
+| GPIO 21     | 2x MPU6050 SDA| Aceleração (I2C)    |
+| GPIO 22     | 2x MPU6050 SCL| Aceleração (I2C)    |
 | GPIO 34     | Potenciômetro | Sensor de Vento     |
 | GPIO 4      | LED Vermelho  | Alerta Visual       |
 | GPIO 5      | Buzzer        | Alerta Sonoro       |
@@ -186,6 +186,8 @@ Adafruit MPU6050            // Aceleração
 Adafruit Unified Sensor     // Framework Adafruit
 ArduinoJson                 // Serialização JSON
 PubSubClient                // Cliente MQTT
+Adafruit GFX Library        // Renderização OLED
+Adafruit SSD1306            // Display OLED
 ```
 
 ## 🐛 Troubleshooting

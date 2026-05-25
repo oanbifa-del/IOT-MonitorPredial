@@ -225,8 +225,8 @@ float vento_kmh = map(analogRead(PINO_VENTO), 0, 4095, 0, 150);
 | **Tipo**        | Float                             |
 | **Range**       | -90.0 a +90.0°                    |
 | **Precisão**    | ±0.1° (após filtro)               |
-| **Sensor**      | MPU6050 Acelerômetro              |
-| **Eixo**        | X (roll)                          |
+| **Sensor**      | MPU6050 #1 (0x68)                |
+| **Eixo**        | X (Leste/Oeste)                  |
 | **Filtro**      | Suavização exponencial ALFA=0.2   |
 | **Atualização** | A cada 2 segundos                 |
 | **Descrição**   | Inclinação da estrutura no eixo X |
@@ -271,8 +271,8 @@ inclinacao_x = atan2(ay, az) × 180 / π
 | **Tipo**        | Float                             |
 | **Range**       | -90.0 a +90.0°                    |
 | **Precisão**    | ±0.1° (após filtro)               |
-| **Sensor**      | MPU6050 Acelerômetro              |
-| **Eixo**        | Y (pitch)                         |
+| **Sensor**      | MPU6050 #2 (0x69)                |
+| **Eixo**        | Y (Norte/Sul)                    |
 | **Filtro**      | Suavização exponencial ALFA=0.2   |
 | **Atualização** | A cada 2 segundos                 |
 | **Descrição**   | Inclinação da estrutura no eixo Y |
