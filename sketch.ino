@@ -8,6 +8,13 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+// Configurações WiFi (EDITAR AQUI!)
+#define WIFI_SSID "Wokwi-GUEST"
+#define WIFI_PASS ""
+
+// Configurações Device
+#define DEVICE_NAME "SHM_NODE"
+
 // Configurações Pinos
 #define DHTPIN 15
 #define DHTTYPE DHT22
@@ -44,31 +51,60 @@ const float ALFA = 0.2;   // Pega 20% do dado novo e 80% do histórico
 void setup_wifi()
 {
   delay(10);
-  WiFi.begin("Wokwi-GUEST", "");
-  while (WiFi.status() != WL_CONNECTED)
-  {
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  int tentativas = 0;
+  while (WiFi.status() != WL_CONNECTED && tentativas < 20) {
     delay(500);
+    tentativas++;
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("WiFi conectado!");
+  } else {
+    Serial.println("Falha ao conectar WiFi");
   }
 }
 
 void reconnect_mqtt()
 {
-  while (!client.connected())
-  {
-    String clientId = "ESP32Client-" + String(random(0, 1000));
-    if (client.connect(clientId.c_str()))
-    {
-      // Conectado
-    }
-    else
-    {
-      delay(5000);
+  int tentativas = 0;
+  while (!client.connected() && tentativas < 5) {
+    String clientId = DEVICE_NAME "-" + String(WiFi.macAddress());
+    if (client.connect(clientId.c_str())) {
+      Serial.println("MQTT conectado!");
+      return;
+    } else {
+      int delay_ms = min(5000 * (tentativas + 1), 30000);
+      Serial.print("Tentativa ");
+      Serial.print(tentativas + 1);
+      Serial.print("/5 - Aguardando ");
+      Serial.print(delay_ms / 1000);
+      Serial.println("s...");
+      delay(delay_ms);
+      tentativas++;
     }
   }
 }
 
+// Função auxiliar para ler DHT com retry
+float readDHTTemperature(int retries = 3) {
+  for (int i = 0; i < retries; i++) {
+    float value = dht.readTemperature();
+    if (!isnan(value)) return value;
+    delay(50);
+  }
+  return NAN;
+}
+
+float readDHTHumidity(int retries = 3) {
+  for (int i = 0; i < retries; i++) {
+    float value = dht.readHumidity();
+    if (!isnan(value)) return value;
+    delay(50);
+  }
+  return NAN;
+}
+
 void setup()
-{
   Serial.begin(115200);
   pinMode(PINO_LED_ALARME, OUTPUT);
   pinMode(PINO_BUZZER, OUTPUT);
@@ -125,8 +161,8 @@ void loop()
   float inc_norte = inc_y > 0 ? inc_y : 0;
   float inc_sul = inc_y < 0 ? -inc_y : 0;
 
-  float temp = dht.readTemperature();
-  float umidade = dht.readHumidity();
+  float temp = readDHTTemperature();
+  float umidade = readDHTHumidity();
   float temp_display = isnan(temp) ? 0 : temp;
   float umidade_display = isnan(umidade) ? 0 : umidade;
   float vento_kmh = map(analogRead(PINO_VENTO), 0, 4095, 0, 150);
