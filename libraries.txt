@@ -1,0 +1,7 @@
+DHT sensor library
+Adafruit MPU6050
+Adafruit Unified Sensor
+ArduinoJson
+PubSubClient
+Adafruit GFX Library
+Adafruit SSD1306

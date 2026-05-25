@@ -19,7 +19,11 @@ Documentação completa da estrutura JSON enviada pelo ESP32.
   },
   "estrutura": {
     "inclinacao_x": 2.1,
-    "inclinacao_y": 1.8
+    "inclinacao_y": -1.8,
+    "inclinacao_leste": 2.1,
+    "inclinacao_oeste": 0.0,
+    "inclinacao_norte": 0.0,
+    "inclinacao_sul": 1.8
   },
   "alertas": {
     "status_global": "SEGURO"
@@ -220,16 +224,16 @@ float vento_kmh = map(analogRead(PINO_VENTO), 0, 4095, 0, 150);
 }
 ```
 
-| Propriedade     | Valor                             |
-| --------------- | --------------------------------- |
-| **Tipo**        | Float                             |
-| **Range**       | -90.0 a +90.0°                    |
-| **Precisão**    | ±0.1° (após filtro)               |
-| **Sensor**      | MPU6050 Acelerômetro              |
-| **Eixo**        | X (roll)                          |
-| **Filtro**      | Suavização exponencial ALFA=0.2   |
-| **Atualização** | A cada 2 segundos                 |
-| **Descrição**   | Inclinação da estrutura no eixo X |
+| Propriedade     | Valor                                   |
+| --------------- | --------------------------------------- |
+| **Tipo**        | Float                                   |
+| **Range**       | -90.0 a +90.0°                          |
+| **Precisão**    | ±0.1° (após filtro)                     |
+| **Sensor**      | MPU6050 #1 (0x68)                       |
+| **Eixo**        | X (Leste/Oeste)                         |
+| **Filtro**      | Suavização exponencial ALFA=0.2         |
+| **Atualização** | A cada 2 segundos                       |
+| **Descrição**   | Inclinação assinada no eixo Leste/Oeste |
 
 **Cálculo:**
 
@@ -266,18 +270,82 @@ inclinacao_x = atan2(ay, az) × 180 / π
 }
 ```
 
-| Propriedade     | Valor                             |
-| --------------- | --------------------------------- |
-| **Tipo**        | Float                             |
-| **Range**       | -90.0 a +90.0°                    |
-| **Precisão**    | ±0.1° (após filtro)               |
-| **Sensor**      | MPU6050 Acelerômetro              |
-| **Eixo**        | Y (pitch)                         |
-| **Filtro**      | Suavização exponencial ALFA=0.2   |
-| **Atualização** | A cada 2 segundos                 |
-| **Descrição**   | Inclinação da estrutura no eixo Y |
+| Propriedade     | Valor                                 |
+| --------------- | ------------------------------------- |
+| **Tipo**        | Float                                 |
+| **Range**       | -90.0 a +90.0°                        |
+| **Precisão**    | ±0.1° (após filtro)                   |
+| **Sensor**      | MPU6050 #2 (0x69)                     |
+| **Eixo**        | Y (Norte/Sul)                         |
+| **Filtro**      | Suavização exponencial ALFA=0.2       |
+| **Atualização** | A cada 2 segundos                     |
+| **Descrição**   | Inclinação assinada no eixo Norte/Sul |
 
 **Similar a inclinacao_x, mas no eixo Y (pitch)**
+
+#### 4.3 inclinacao_leste
+
+```json
+{
+  "estrutura": {
+    "inclinacao_leste": 2.1
+  }
+}
+```
+
+| Propriedade   | Valor                              |
+| ------------- | ---------------------------------- |
+| **Tipo**      | Float                              |
+| **Range**     | 0.0 a +90.0°                       |
+| **Descrição** | Inclinação apenas no sentido Leste |
+
+#### 4.4 inclinacao_oeste
+
+```json
+{
+  "estrutura": {
+    "inclinacao_oeste": 1.8
+  }
+}
+```
+
+| Propriedade   | Valor                              |
+| ------------- | ---------------------------------- |
+| **Tipo**      | Float                              |
+| **Range**     | 0.0 a +90.0°                       |
+| **Descrição** | Inclinação apenas no sentido Oeste |
+
+#### 4.5 inclinacao_norte
+
+```json
+{
+  "estrutura": {
+    "inclinacao_norte": 1.2
+  }
+}
+```
+
+| Propriedade   | Valor                              |
+| ------------- | ---------------------------------- |
+| **Tipo**      | Float                              |
+| **Range**     | 0.0 a +90.0°                       |
+| **Descrição** | Inclinação apenas no sentido Norte |
+
+#### 4.6 inclinacao_sul
+
+```json
+{
+  "estrutura": {
+    "inclinacao_sul": 0.9
+  }
+}
+```
+
+| Propriedade   | Valor                            |
+| ------------- | -------------------------------- |
+| **Tipo**      | Float                            |
+| **Range**     | 0.0 a +90.0°                     |
+| **Descrição** | Inclinação apenas no sentido Sul |
 
 ---
 
@@ -353,7 +421,11 @@ alertas["status_global"] = status_critico ? "CRITICO" : "SEGURO";
   },
   "estrutura": {
     "inclinacao_x": 2.1,
-    "inclinacao_y": 1.8
+    "inclinacao_y": -1.8,
+    "inclinacao_leste": 2.1,
+    "inclinacao_oeste": 0.0,
+    "inclinacao_norte": 0.0,
+    "inclinacao_sul": 1.8
   },
   "alertas": {
     "status_global": "SEGURO"
@@ -374,7 +446,11 @@ alertas["status_global"] = status_critico ? "CRITICO" : "SEGURO";
   },
   "estrutura": {
     "inclinacao_x": -7.4,
-    "inclinacao_y": 6.2
+    "inclinacao_y": 6.2,
+    "inclinacao_leste": 0.0,
+    "inclinacao_oeste": 7.4,
+    "inclinacao_norte": 6.2,
+    "inclinacao_sul": 0.0
   },
   "alertas": {
     "status_global": "CRITICO"

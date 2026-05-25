@@ -82,7 +82,7 @@ Pino 4: NC (não conectado)
 
 ---
 
-## 🎪 MPU6050
+## 🎪 2x MPU6050
 
 **Aceleração + Giroscópio 6-DOF**
 
@@ -118,8 +118,13 @@ GY-521 com pino AD0
 ### Configuração no Código
 
 ```cpp
-// Range de aceleração: ±4g
-mpu.setAccelerometerRange(MPU6050_RANGE_4_G);
+// MPU #1 (Leste/Oeste) no endereço 0x68
+mpu_leste_oeste.begin(0x68);
+mpu_leste_oeste.setAccelerometerRange(MPU6050_RANGE_4_G);
+
+// MPU #2 (Norte/Sul) no endereço 0x69
+mpu_norte_sul.begin(0x69);
+mpu_norte_sul.setAccelerometerRange(MPU6050_RANGE_4_G);
 
 // Outras opções:
 // MPU6050_RANGE_2_G   (±2g)
@@ -127,17 +132,18 @@ mpu.setAccelerometerRange(MPU6050_RANGE_4_G);
 // MPU6050_RANGE_16_G  (±16g)
 ```
 
-### Cálculo de Inclinação
+### Cálculo de Inclinação por Face
 
 ```
-inclinacao_x = atan2(aceleração_y, aceleração_z) × 180 / π
-inclinacao_y = atan2(aceleração_x, aceleração_z) × 180 / π
+inclinacao_leste_oeste = filtro(MPU6050_0x68.eixo_x)
+inclinacao_norte_sul   = filtro(MPU6050_0x69.eixo_y)
 ```
 
 ### Wokwi Configuration
 
 ```json
-{ "type": "wokwi-mpu6050", "id": "mpu1", "top": 50, "left": -200 }
+{ "type": "wokwi-mpu6050", "id": "mpu1", "attrs": { "i2cAddress": "0x68" } }
+{ "type": "wokwi-mpu6050", "id": "mpu2", "attrs": { "i2cAddress": "0x69" } }
 ```
 
 ---
@@ -365,8 +371,8 @@ display.display();
 | GPIO | Dispositivo       | Protocolo    | Função              |
 | ---- | ----------------- | ------------ | ------------------- |
 | 15   | DHT22             | 1-Wire       | Temperatura/Umidade |
-| 21   | MPU6050 + OLED    | I2C (SDA)    | Dados               |
-| 22   | MPU6050 + OLED    | I2C (SCL)    | Clock               |
+| 21   | 2x MPU6050 + OLED | I2C (SDA)    | Dados               |
+| 22   | 2x MPU6050 + OLED | I2C (SCL)    | Clock               |
 | 34   | Potenciômetro     | ADC          | Velocidade vento    |
 | 4    | LED Vermelho      | GPIO Digital | Alerta visual       |
 | 5    | Buzzer            | GPIO PWM     | Alerta sonoro       |
@@ -380,7 +386,7 @@ display.display();
 ```
 Leitura Bruta
     ↓
-[Aceleração bruta do MPU6050]
+[Aceleração bruta dos 2x MPU6050]
     ↓
 Filtro Anti-ruído (suavização exponencial)
     ↓

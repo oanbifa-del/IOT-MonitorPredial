@@ -14,6 +14,39 @@ def carregar_dados():
     except Exception:
         return pd.DataFrame()
 
+def preparar_inclinacoes(df):
+    df = df.copy()
+    if "inc_x" in df.columns:
+        if "inc_leste" not in df.columns:
+            df["inc_leste"] = df["inc_x"].clip(lower=0)
+        else:
+            df["inc_leste"] = df["inc_leste"].fillna(df["inc_x"].clip(lower=0))
+        if "inc_oeste" not in df.columns:
+            df["inc_oeste"] = (-df["inc_x"]).clip(lower=0)
+        else:
+            df["inc_oeste"] = df["inc_oeste"].fillna((-df["inc_x"]).clip(lower=0))
+
+    if "inc_y" in df.columns:
+        if "inc_norte" not in df.columns:
+            df["inc_norte"] = df["inc_y"].clip(lower=0)
+        else:
+            df["inc_norte"] = df["inc_norte"].fillna(df["inc_y"].clip(lower=0))
+        if "inc_sul" not in df.columns:
+            df["inc_sul"] = (-df["inc_y"]).clip(lower=0)
+        else:
+            df["inc_sul"] = df["inc_sul"].fillna((-df["inc_y"]).clip(lower=0))
+
+    if "inc_x" not in df.columns and {"inc_leste", "inc_oeste"}.issubset(df.columns):
+        df["inc_x"] = df["inc_leste"].fillna(0) - df["inc_oeste"].fillna(0)
+    elif "inc_x" in df.columns and {"inc_leste", "inc_oeste"}.issubset(df.columns):
+        df["inc_x"] = df["inc_x"].fillna(df["inc_leste"].fillna(0) - df["inc_oeste"].fillna(0))
+
+    if "inc_y" not in df.columns and {"inc_norte", "inc_sul"}.issubset(df.columns):
+        df["inc_y"] = df["inc_norte"].fillna(0) - df["inc_sul"].fillna(0)
+    elif "inc_y" in df.columns and {"inc_norte", "inc_sul"}.issubset(df.columns):
+        df["inc_y"] = df["inc_y"].fillna(df["inc_norte"].fillna(0) - df["inc_sul"].fillna(0))
+    return df
+
 st.sidebar.title("⚙️ Configurações")
 st.sidebar.markdown("---")
 dispositivo_selecionado = st.sidebar.selectbox("Selecionar Nó IoT", ["Todos", "SHM_NODE_RJ_01"])
@@ -28,6 +61,7 @@ if not df_completo.empty:
     else:
         df = df_completo.copy()
 
+    df = preparar_inclinacoes(df)
     df_grafico = df.head(limite_linhas).iloc[::-1].copy() 
     registro_atual = df.iloc[0]
 
@@ -47,24 +81,41 @@ if not df_completo.empty:
         st.markdown("---")
         c1, c2, c3, c4 = st.columns(4)
         
-        delta_x = f"{registro_atual['inc_x'] - df.iloc[1]['inc_x']:.2f} º" if len(df) > 1 else None
-        delta_y = f"{registro_atual['inc_y'] - df.iloc[1]['inc_y']:.2f} º" if len(df) > 1 else None
+        delta_leste = f"{registro_atual['inc_leste'] - df.iloc[1]['inc_leste']:.2f} º" if len(df) > 1 else None
+        delta_oeste = f"{registro_atual['inc_oeste'] - df.iloc[1]['inc_oeste']:.2f} º" if len(df) > 1 else None
+        delta_norte = f"{registro_atual['inc_norte'] - df.iloc[1]['inc_norte']:.2f} º" if len(df) > 1 else None
+        delta_sul = f"{registro_atual['inc_sul'] - df.iloc[1]['inc_sul']:.2f} º" if len(df) > 1 else None
         
-        c1.metric("Balanço Eixo X", f"{registro_atual['inc_x']:.2f} º", delta=delta_x, delta_color="inverse")
-        c2.metric("Balanço Eixo Y", f"{registro_atual['inc_y']:.2f} º", delta=delta_y, delta_color="inverse")
-        c3.metric("Vel. Vento", f"{registro_atual['vento']:.1f} km/h")
-        c4.metric("Temp. Interna", f"{registro_atual['temp']} °C")
+        c1.metric("Inclinação Leste", f"{registro_atual['inc_leste']:.2f} º", delta=delta_leste, delta_color="inverse")
+        c2.metric("Inclinação Oeste", f"{registro_atual['inc_oeste']:.2f} º", delta=delta_oeste, delta_color="inverse")
+        c3.metric("Inclinação Norte", f"{registro_atual['inc_norte']:.2f} º", delta=delta_norte, delta_color="inverse")
+        c4.metric("Inclinação Sul", f"{registro_atual['inc_sul']:.2f} º", delta=delta_sul, delta_color="inverse")
+
+        c5, c6, c7 = st.columns(3)
+        c5.metric("Vel. Vento", f"{registro_atual['vento']:.1f} km/h")
+        c6.metric("Temp. Interna", f"{registro_atual['temp']:.1f} °C")
+        c7.metric("Umidade", f"{registro_atual['umidade']:.1f} %")
 
         st.markdown("### 📈 Análise de Tendências e Deslocamento")
         g1, g2, g3 = st.columns([2, 2, 1.5]) # Dividiu em 3 colunas para acomodar o novo gráfico espacial
         
-        df_grafico['Limite Crítico (+5º)'] = 5.0
-        df_grafico['Limite Crítico (-5º)'] = -5.0
+        df_grafico['Limite Crítico (5º)'] = 5.0
         df_grafico['Alerta Vento (90km/h)'] = 90.0
 
         with g1:
-            st.markdown("**Histórico de Inclinação Temporal (Graus)**")
-            st.line_chart(df_grafico[['inc_x', 'inc_y', 'Limite Crítico (+5º)', 'Limite Crítico (-5º)']].set_index(df_grafico['timestamp']), color=["#1f77b4", "#ff7f0e", "#d62728", "#d62728"])
+            st.markdown("**Histórico de Inclinação Direcional (Graus)**")
+            st.line_chart(
+                df_grafico[
+                    [
+                        'inc_leste',
+                        'inc_oeste',
+                        'inc_norte',
+                        'inc_sul',
+                        'Limite Crítico (5º)'
+                    ]
+                ].set_index(df_grafico['timestamp']),
+                color=["#1f77b4", "#9467bd", "#2ca02c", "#ff7f0e", "#d62728"]
+            )
         
         with g2:
             st.markdown("**Força do Vento Temporal (km/h)**")
@@ -91,6 +142,5 @@ if not df_completo.empty:
 else:
     st.info("Aguardando conexão e recebimento do primeiro pacote de dados...")
 
-time.slice = 2
 time.sleep(2)
 st.rerun()

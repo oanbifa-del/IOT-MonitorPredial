@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from typing import Optional
 import sqlite3
 import datetime
 
@@ -15,8 +16,12 @@ class Ambiente(BaseModel):
     vento_kmh: float
 
 class Estrutura(BaseModel):
-    inclinacao_x: float
-    inclinacao_y: float
+    inclinacao_x: Optional[float] = None
+    inclinacao_y: Optional[float] = None
+    inclinacao_leste: float
+    inclinacao_oeste: float
+    inclinacao_norte: float
+    inclinacao_sul: float
 
 class Alertas(BaseModel):
     status_global: str
@@ -35,6 +40,12 @@ class PayloadSensores(BaseModel):
 # 2. Configuração do Banco de Dados SQLite (Local)
 # Vamos usar local por enquanto, antes de migrar para Firebase NoSQL
 # ---------------------------------------------------------
+def ensure_columns(cursor, table, columns):
+    existing = {row[1] for row in cursor.execute(f"PRAGMA table_info({table})")}
+    for name, col_type in columns:
+        if name not in existing:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {name} {col_type}")
+
 def init_db():
     conn = sqlite3.connect('shm_database.db')
     cursor = conn.cursor()
@@ -48,9 +59,19 @@ def init_db():
             vento REAL,
             inc_x REAL,
             inc_y REAL,
+            inc_leste REAL,
+            inc_oeste REAL,
+            inc_norte REAL,
+            inc_sul REAL,
             status_global TEXT
         )
     ''')
+    ensure_columns(cursor, "leituras", [
+        ("inc_leste", "REAL"),
+        ("inc_oeste", "REAL"),
+        ("inc_norte", "REAL"),
+        ("inc_sul", "REAL")
+    ])
     conn.commit()
     conn.close()
 
@@ -61,20 +82,48 @@ init_db() # Executa ao iniciar a API
 # ---------------------------------------------------------
 @app.post("/api/sensores")
 async def receber_dados(data: PayloadSensores):
+    inc_x = data.estrutura.inclinacao_x
+    inc_y = data.estrutura.inclinacao_y
+    inc_leste = data.estrutura.inclinacao_leste
+    inc_oeste = data.estrutura.inclinacao_oeste
+    inc_norte = data.estrutura.inclinacao_norte
+    inc_sul = data.estrutura.inclinacao_sul
+
+    if inc_x is None:
+        inc_x = inc_leste - inc_oeste
+    if inc_y is None:
+        inc_y = inc_norte - inc_sul
+
     # Conecta ao banco e insere a nova leitura
     conn = sqlite3.connect('shm_database.db')
     cursor = conn.cursor()
     
     cursor.execute('''
-        INSERT INTO leituras (device_id, temp, umidade, vento, inc_x, inc_y, status_global)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO leituras (
+            device_id,
+            temp,
+            umidade,
+            vento,
+            inc_x,
+            inc_y,
+            inc_leste,
+            inc_oeste,
+            inc_norte,
+            inc_sul,
+            status_global
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data.device_id,
         data.ambiente.temperatura,
         data.ambiente.umidade,
         data.ambiente.vento_kmh,
-        data.estrutura.inclinacao_x,
-        data.estrutura.inclinacao_y,
+        inc_x,
+        inc_y,
+        inc_leste,
+        inc_oeste,
+        inc_norte,
+        inc_sul,
         data.alertas.status_global
     ))
     conn.commit()

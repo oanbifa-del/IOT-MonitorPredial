@@ -67,7 +67,11 @@ Backend Python subscreve:
   },
   "estrutura": {
     "inclinacao_x": 2.1,
-    "inclinacao_y": 1.8
+    "inclinacao_y": -1.8,
+    "inclinacao_leste": 2.1,
+    "inclinacao_oeste": 0.0,
+    "inclinacao_norte": 0.0,
+    "inclinacao_sul": 1.8
   },
   "alertas": {
     "status_global": "SEGURO"
@@ -122,6 +126,30 @@ estrutura.inclinacao_y
 ├─ Range: -90 a 90°
 ├─ Precisão: ±0.1°
 ├─ Aplicação: Filtro suavizador ALFA=0.2
+└─ Unidade: Graus
+
+estrutura.inclinacao_leste
+├─ Tipo: Float
+├─ Range: 0 a 90°
+├─ Descrição: Inclinação no sentido Leste
+└─ Unidade: Graus
+
+estrutura.inclinacao_oeste
+├─ Tipo: Float
+├─ Range: 0 a 90°
+├─ Descrição: Inclinação no sentido Oeste
+└─ Unidade: Graus
+
+estrutura.inclinacao_norte
+├─ Tipo: Float
+├─ Range: 0 a 90°
+├─ Descrição: Inclinação no sentido Norte
+└─ Unidade: Graus
+
+estrutura.inclinacao_sul
+├─ Tipo: Float
+├─ Range: 0 a 90°
+├─ Descrição: Inclinação no sentido Sul
 └─ Unidade: Graus
 
 alertas.status_global
