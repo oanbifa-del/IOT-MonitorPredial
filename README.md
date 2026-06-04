@@ -31,6 +31,16 @@ Sensores (ESP32) -> MQTT (broker.emqx.io:1883) -> mqtt_backend.py -> SQLite -> m
 
 2) Backend
 ```
+# 1. Criar ambiente virtual
+python -m venv venv
+
+# 2. Ativar 
+(Windows)
+venv\Scripts\activate
+(Linux/Mac)
+source venv/bin/activate
+
+# 3. Rodar 1 por vez os comandos:(o 3º em terminal separado)
 pip install -r libraries.txt
 python mqtt_backend.py
 python main.py
