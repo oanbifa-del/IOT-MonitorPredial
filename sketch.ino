@@ -48,8 +48,11 @@ const float MAX_TEMP = 45.0;
 float inc_x_filtrado = 0; // Leste/Oeste
 float inc_y_filtrado = 0; // Norte/Sul
 const float ALFA = 0.2;   // Pega 20% do dado novo e 80% do historico
+const unsigned long MQTT_RETRY_INTERVAL_MS = 5000;
+const unsigned long LOOP_INTERVAL_MS = 3000;
 
 String device_id;
+unsigned long last_mqtt_attempt_ms = 0;
 
 void setup_wifi()
 {
@@ -81,24 +84,27 @@ String get_device_id()
   return String(DEVICE_NAME) + "-" + mac;
 }
 
-void reconnect_mqtt()
+void try_reconnect_mqtt()
 {
-  int tentativas = 0;
-  while (!client.connected() && tentativas < 5)
+  if (client.connected())
   {
-    if (client.connect(device_id.c_str()))
-    {
-      Serial.println("MQTT conectado!");
-      return;
-    }
-    int delay_ms = min(5000 * (tentativas + 1), 30000);
-    Serial.print("Tentativa ");
-    Serial.print(tentativas + 1);
-    Serial.print("/5 - Aguardando ");
-    Serial.print(delay_ms / 1000);
-    Serial.println("s...");
-    delay(delay_ms);
-    tentativas++;
+    return;
+  }
+
+  unsigned long agora = millis();
+  if (agora - last_mqtt_attempt_ms < MQTT_RETRY_INTERVAL_MS)
+  {
+    return;
+  }
+
+  last_mqtt_attempt_ms = agora;
+  if (client.connect(device_id.c_str()))
+  {
+    Serial.println("MQTT conectado!");
+  }
+  else
+  {
+    Serial.println("MQTT indisponivel; mantendo leitura local.");
   }
 }
 
@@ -168,8 +174,7 @@ void setup()
 
 void loop()
 {
-  if (!client.connected())
-    reconnect_mqtt();
+  try_reconnect_mqtt();
   client.loop();
 
   // 1. Leituras Brutas
@@ -262,7 +267,10 @@ void loop()
 
   String payload;
   serializeJson(doc, payload);
-  client.publish(mqtt_topic, payload.c_str());
+  if (client.connected())
+  {
+    client.publish(mqtt_topic, payload.c_str());
+  }
 
-  delay(2000);
+  delay(LOOP_INTERVAL_MS);
 }

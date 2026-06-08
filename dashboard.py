@@ -2,17 +2,74 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import time
+from datetime import timedelta, timezone
+from pathlib import Path
+from datetime import datetime
 
 st.set_page_config(page_title="Sistema SHM", layout="wide", page_icon="🏗️")
+DB_PATH = Path(__file__).resolve().with_name("shm_database.db")
+BRT = timezone(timedelta(hours=-3))
+REFRESH_SECONDS = 3
+
+
+def parse_timestamp_brt(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d %H:%M:%S").replace(tzinfo=BRT)
+    except ValueError:
+        return None
 
 def carregar_dados():
     try:
-        conn = sqlite3.connect('shm_database.db')
+        if not DB_PATH.exists():
+            return pd.DataFrame()
+        conn = sqlite3.connect(DB_PATH)
         df = pd.read_sql_query("SELECT * FROM leituras ORDER BY id DESC", conn)
         conn.close()
         return df
     except Exception:
         return pd.DataFrame()
+
+def carregar_resumo_recencia():
+    try:
+        if not DB_PATH.exists():
+            return {"total": 0, "hoje": 0, "ultimas_24h": 0, "ultimo_timestamp": None, "source": None}
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        registros = cursor.execute(
+            "SELECT timestamp, COALESCE(source, 'mqtt') FROM leituras ORDER BY id DESC"
+        ).fetchall()
+        conn.close()
+
+        total = len(registros)
+        if total == 0:
+            return {"total": 0, "hoje": 0, "ultimas_24h": 0, "ultimo_timestamp": None, "source": None}
+
+        agora = datetime.now(BRT)
+        corte_24h = agora - timedelta(hours=24)
+        hoje = 0
+        ultimas_24h = 0
+
+        for timestamp_text, _source in registros:
+            parsed = parse_timestamp_brt(timestamp_text)
+            if parsed is None:
+                continue
+            if parsed.date() == agora.date():
+                hoje += 1
+            if parsed >= corte_24h:
+                ultimas_24h += 1
+
+        return {
+            "total": total,
+            "hoje": hoje,
+            "ultimas_24h": ultimas_24h,
+            "ultimo_timestamp": registros[0][0],
+            "source": registros[0][1],
+        }
+    except Exception:
+        return {"total": 0, "hoje": 0, "ultimas_24h": 0, "ultimo_timestamp": None, "source": None}
 
 def preparar_inclinacoes(df):
     df = df.copy()
@@ -49,13 +106,35 @@ def preparar_inclinacoes(df):
 
 st.sidebar.title("⚙️ Configurações")
 st.sidebar.markdown("---")
-dispositivo_selecionado = st.sidebar.selectbox("Selecionar Nó IoT", ["Todos", "SHM_NODE_RJ_01"])
 limite_linhas = st.sidebar.slider("Pontos no Gráfico (Histórico)", 10, 200, 50)
 
 st.title("🏗️ Centro de Monitoramento Estrutural (SHM)")
 df_completo = carregar_dados()
+resumo_recencia = carregar_resumo_recencia()
+
+if resumo_recencia["total"] > 0:
+    col_total, col_hoje, col_24h, col_ultimo = st.columns(4)
+    col_total.metric("Total de Leituras", resumo_recencia["total"])
+    col_hoje.metric("Leituras de Hoje", resumo_recencia["hoje"])
+    col_24h.metric("Leituras nas Últimas 24h", resumo_recencia["ultimas_24h"])
+    col_ultimo.metric(
+        "Último Registro",
+        resumo_recencia["ultimo_timestamp"] or "N/A",
+    )
+
+    if resumo_recencia["source"]:
+        st.caption(f"Fonte do último registro: {resumo_recencia['source']}")
+
+if resumo_recencia["hoje"] == 0 and resumo_recencia["total"] > 0:
+    st.warning(
+        "Não há leituras de hoje no banco. O painel está mostrando dados antigos. "
+        "Verifique se o Wokwi está em execução e se o mqtt_backend.py está conectado ao broker MQTT."
+    )
 
 if not df_completo.empty:
+    dispositivos = [str(device_id) for device_id in df_completo["device_id"].dropna().unique().tolist()]
+    dispositivo_selecionado = st.sidebar.selectbox("Selecionar Nó IoT", ["Todos"] + dispositivos)
+
     if dispositivo_selecionado != "Todos":
         df = df_completo[df_completo['device_id'] == dispositivo_selecionado]
     else:
@@ -137,19 +216,19 @@ if not df_completo.empty:
 
     # ABA 2: MAPA DE GEOLOCALIZAÇÃO
     with tab_mapa:
-        st.markdown("### Localização do Sensor: SHM_NODE_RJ_01")
+        st.markdown(f"### Localização do Sensor: {registro_atual['device_id']}")
         df_mapa = pd.DataFrame({'lat': [-22.8714], 'lon': [-43.1610]})
         st.map(df_mapa, zoom=12)
 
     # ABA 3: DADOS BRUTOS (LOGS)
     with tab_dados_brutos:
         st.markdown("### Logs Oficiais do Sistema (Fuso Horário: GMT-3)")
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width="stretch")
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(label="📥 Baixar Relatório (CSV)", data=csv, file_name='relatorio_shm.csv', mime='text/csv')
+        st.download_button(label="📥 Baixar Relatório (CSV)", data=csv, file_name='relatorio_shm.csv', mime='text/csv', width="stretch")
 
 else:
-    st.info("Aguardando conexão e recebimento do primeiro pacote de dados...")
+    st.info("Aguardando conexão e recebimento do primeiro pacote de dados. Verifique se o Wokwi está publicando no broker MQTT e se o backend está em execução.")
 
-time.sleep(2)
+time.sleep(REFRESH_SECONDS)
 st.rerun()
