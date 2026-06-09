@@ -38,8 +38,10 @@ def carregar_resumo_recencia():
 
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        colunas = {row[1] for row in cursor.execute("PRAGMA table_info(leituras)").fetchall()}
+        source_expr = "COALESCE(source, 'mqtt')" if "source" in colunas else "'mqtt'"
         registros = cursor.execute(
-            "SELECT timestamp, COALESCE(source, 'mqtt') FROM leituras ORDER BY id DESC"
+            f"SELECT timestamp, {source_expr} FROM leituras ORDER BY id DESC"
         ).fetchall()
         conn.close()
 

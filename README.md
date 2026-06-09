@@ -1,81 +1,97 @@
-# SHM IoT - Sistema de Monitoramento Estrutural
+# SHM IoT - Monitoramento Estrutural com Wokwi
 
-Projeto de monitoramento de saude estrutural com ESP32 no Wokwi, MQTT, backend Python, banco SQLite e dashboard Streamlit.
+Sistema de monitoramento estrutural com ESP32 no Wokwi, MQTT, backend Python, SQLite e dashboard Streamlit.
 
-O sistema mede inclinacao em quatro direcoes, temperatura, umidade e vento simulado. Quando algum limite de risco e ultrapassado, o firmware aciona LED, buzzer e envia status critico para o dashboard.
+O projeto mede inclinacao em dois eixos, temperatura, umidade e vento simulado. Quando algum limite e ultrapassado, o ESP32 aciona LED/buzzer, mostra o estado no OLED e publica o status no MQTT.
 
-## Visao geral da arquitetura
+## Fluxo de producao
 
 ```text
-ESP32 / Wokwi
-  |
-  | publica JSON via MQTT
-  v
-Broker publico EMQX: broker.emqx.io:1883
-  |
-  | topico: shm/projeto_arthur/sensores
-  v
+Wokwi / ESP32
+  -> publica JSON no MQTT
+broker.emqx.io:1883
+  -> topico shm/projeto_arthur/sensores
 mqtt_backend.py
-  |
-  | grava leituras
-  v
+  -> grava no SQLite
 shm_database.db
-  |
-  +--> dashboard.py (Streamlit)
-  |
-  +--> main.py (API FastAPI opcional)
+  -> lido pelo dashboard.py
+Streamlit
+  -> http://localhost:8501
 ```
 
-## Arquivos principais
+Para o fluxo principal, o backend MQTT e necessario. O Streamlit nao recebe dados direto do Wokwi; ele le o banco SQLite que o backend atualiza.
 
-| Arquivo | Para que serve |
+`main.py` e uma API FastAPI opcional para testes HTTP. Nao e necessario para rodar o projeto com Wokwi em producao.
+
+## Arquivos usados em producao
+
+| Arquivo | Uso |
 | --- | --- |
-| `sketch.ino` | Firmware do ESP32 usado no Wokwi. Le sensores, calcula alertas, mostra dados no OLED e publica MQTT. |
-| `diagram.json` | Circuito do Wokwi com ESP32, DHT22, dois MPU6050, potenciometro, LED, buzzer e OLED. |
-| `libraries.txt` | Bibliotecas Arduino que o Wokwi precisa instalar para compilar o sketch. |
-| `mqtt_backend.py` | Servico Python que escuta o MQTT e grava as leituras no SQLite. Tambem gera dados demo se o broker estiver indisponivel. |
-| `dashboard.py` | Painel Streamlit que mostra status, metricas, graficos e historico de leituras. |
-| `main.py` | API FastAPI opcional para gravar o mesmo payload por HTTP. |
-| `requirements.txt` | Dependencias Python para backend, API e dashboard. |
-| `shm_database.db` | Banco SQLite local usado pelo backend, API e dashboard. Se nao existir, o projeto cria automaticamente. |
-| `ARQUIVOS_PRINCIPAIS.md` | Resumo rapido dos arquivos essenciais. |
+| `sketch.ino` | Firmware do ESP32 no Wokwi. Le sensores, calcula inclinacao em graus, publica MQTT e atualiza OLED/alertas. |
+| `diagram.json` | Montagem Wokwi com ESP32, DHT22, 2 MPU6050, potenciometro, LED, buzzer e OLED. |
+| `libraries.txt` | Bibliotecas Arduino necessarias para compilar no Wokwi. |
+| `mqtt_backend.py` | Backend obrigatorio para receber MQTT e salvar no SQLite. |
+| `dashboard.py` | Dashboard Streamlit que atualiza a tela a cada 3 segundos. |
+| `requirements.txt` | Dependencias Python. |
+| `shm_database.db` | Banco SQLite local. Se nao existir, o backend cria automaticamente. |
+
+Arquivo opcional:
+
+| Arquivo | Uso |
+| --- | --- |
+| `main.py` | API FastAPI opcional para testes ou integracao HTTP. |
 
 ## Componentes do Wokwi
 
-O `diagram.json` esta alinhado com os pinos usados no `sketch.ino`.
+O projeto deve ter 2 sensores MPU6050:
 
-| Componente | Pino / configuracao |
+| Componente | Configuracao |
 | --- | --- |
 | ESP32 DevKit C v4 | Placa principal |
 | DHT22 | `GPIO 15` |
 | Potenciometro de vento | `GPIO 34` |
-| LED vermelho de alarme | `GPIO 4`, com resistor de 220 ohms |
+| LED vermelho | `GPIO 4` com resistor de 220 ohms |
 | Buzzer | `GPIO 5` |
 | MPU6050 Leste/Oeste | I2C `GPIO 21/22`, endereco `0x68` |
-| MPU6050 Norte/Sul | I2C `GPIO 21/22`, endereco `0x69` |
+| MPU6050 Norte/Sul | I2C `GPIO 21/22`, endereco `0x69`, pino `AD0` ligado em `3V3` |
 | OLED SSD1306 | I2C `GPIO 21/22`, endereco padrao `0x3C` |
 
-## Pre-requisitos em qualquer computador
+No codigo:
 
-Instale:
+- `inclinacao_x`: eixo Leste/Oeste.
+- `inclinacao_y`: eixo Norte/Sul.
+- Valores positivos em `x`: Leste.
+- Valores negativos em `x`: Oeste.
+- Valores positivos em `y`: Norte.
+- Valores negativos em `y`: Sul.
 
-- Git
+## Intervalo de atualizacao
+
+O sistema foi configurado para 3 segundos:
+
+| Camada | Configuracao |
+| --- | --- |
+| ESP32/Wokwi | `LOOP_INTERVAL_MS = 3000` em `sketch.ino` |
+| Backend demo/fallback | `DEMO_INTERVAL_SECONDS = 3` em `mqtt_backend.py` |
+| Dashboard | `REFRESH_SECONDS = 3` em `dashboard.py` |
+
+O ESP32 tambem envia no JSON:
+
+```json
+{
+  "uptime_ms": 123456,
+  "intervalo_ms": 3000
+}
+```
+
+## Pre-requisitos
+
 - Python 3.10 ou superior
 - Navegador web
 - Wokwi online ou extensao Wokwi no VS Code
+- Internet liberada para `broker.emqx.io:1883`
 
-Tambem e necessario acesso a internet, porque o ESP32 simulado e o backend usam o broker publico `broker.emqx.io`.
-
-## Como baixar o projeto
-
-```bash
-git clone https://github.com/Art-rh/shm_iot_project.git
-cd shm_iot_project
-```
-
-Se voce recebeu a pasta zipada, apenas extraia e abra o terminal dentro da pasta `shm_iot_project`.
-
-## Preparar o ambiente Python
+## Instalar dependencias Python
 
 ### Windows PowerShell
 
@@ -86,7 +102,7 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Se o PowerShell bloquear a ativacao da venv, rode uma vez:
+Se o PowerShell bloquear a ativacao:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
@@ -103,157 +119,116 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## Rodar pelo Wokwi
+## Configurar e rodar no Wokwi
 
-Voce pode usar o Wokwi online ou a extensao no VS Code.
-
-### Opcao 1: Wokwi online
-
-1. Abra https://wokwi.com.
-2. Crie um projeto ESP32 novo.
-3. Copie o conteudo de `sketch.ino` para o arquivo principal do projeto.
-4. Copie o conteudo de `diagram.json` para o diagrama do projeto.
-5. Copie o conteudo de `libraries.txt` para o arquivo de bibliotecas.
-6. Confirme que no `sketch.ino` esta assim:
+1. Abra o projeto no Wokwi.
+2. Copie o conteudo atualizado de `sketch.ino` para o sketch.
+3. Copie o conteudo de `diagram.json` para o diagrama.
+4. Copie o conteudo de `libraries.txt` para as bibliotecas.
+5. Confirme o WiFi do Wokwi no sketch:
 
 ```cpp
 #define WIFI_SSID "Wokwi-GUEST"
 #define WIFI_PASS ""
 ```
 
-7. Clique em Start Simulation.
+6. Confirme o broker e topico:
 
-### Opcao 2: VS Code com extensao Wokwi
+```cpp
+const char *mqtt_server = "broker.emqx.io";
+const char *mqtt_topic = "shm/projeto_arthur/sensores";
+```
 
-1. Abra a pasta do projeto no VS Code.
-2. Instale a extensao Wokwi, se ainda nao tiver.
-3. Abra `diagram.json`.
-4. Inicie a simulacao pela extensao.
+7. Clique em `Start Simulation`.
+8. Abra o Serial Monitor do Wokwi.
 
-### Como saber que o Wokwi esta funcionando
-
-No monitor serial do Wokwi devem aparecer mensagens como:
+Saida esperada:
 
 ```text
 WiFi conectado!
 MQTT conectado!
+MQTT publish: OK
+MQTT conectado: SIM
+MQTT state: 0
+Payload bytes: ...
 ```
 
-O OLED deve mostrar status, inclinacoes, vento, temperatura e umidade. Ao aumentar muito o vento pelo potenciometro ou gerar inclinacao acima do limite, o LED e o buzzer devem ativar.
+Essas mensagens devem repetir a cada aproximadamente 3 segundos.
+
+Se aparecer `MQTT publish: FALHOU`, veja no Serial Monitor:
+
+- `MQTT conectado`
+- `MQTT state`
+- `Payload bytes`
 
 ## Rodar o backend MQTT
 
-Abra um terminal na pasta do projeto e ative a venv.
+Abra um terminal na pasta do projeto:
 
-Windows:
+### Windows
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 python mqtt_backend.py
 ```
 
-macOS / Linux:
+### macOS / Linux
 
 ```bash
 source .venv/bin/activate
 python mqtt_backend.py
 ```
 
-O backend faz quatro coisas:
-
-- conecta no broker MQTT `broker.emqx.io`
-- assina o topico `shm/projeto_arthur/sensores`
-- grava as leituras em `shm_database.db`
-- gera dados demo automaticamente enquanto o broker estiver indisponivel
-
-Quando estiver recebendo dados reais do Wokwi, o terminal deve mostrar linhas parecidas com:
+Terminal esperado:
 
 ```text
 MQTT conectado e inscrito no topico shm/projeto_arthur/sensores.
-[2026-06-08 18:00:00] Dados salvos | Status: SEGURO
+[2026-06-09 19:40:56] Dados salvos | Status: SEGURO
 ```
 
-Mantenha esse terminal aberto enquanto usar o dashboard.
+Mantenha esse terminal aberto.
 
-## Rodar o dashboard Streamlit
+## Rodar o dashboard
 
-Abra outro terminal na mesma pasta e ative a venv.
+Abra outro terminal na pasta do projeto:
 
-Windows:
+### Windows
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 python -m streamlit run dashboard.py
 ```
 
-macOS / Linux:
+### macOS / Linux
 
 ```bash
 source .venv/bin/activate
 python -m streamlit run dashboard.py
 ```
 
-O Streamlit vai mostrar uma URL local, normalmente:
+Abra:
 
 ```text
 http://localhost:8501
 ```
 
-Abra essa URL no navegador. O painel deve mostrar:
+O dashboard deve atualizar automaticamente a cada 3 segundos.
 
-- total de leituras
-- leituras do dia
-- status global
-- inclinacao por direcao
-- vento, temperatura e umidade
-- graficos historicos
-- tabela de logs
-- botao para baixar CSV
+## Ordem correta para demonstracao
 
-## Ordem recomendada para demonstracao
+1. Rodar a simulacao no Wokwi.
+2. Conferir no Serial Monitor: `MQTT publish: OK`.
+3. Rodar `python mqtt_backend.py`.
+4. Rodar `python -m streamlit run dashboard.py`.
+5. Abrir `http://localhost:8501`.
 
-Use tres janelas:
-
-1. Wokwi rodando a simulacao.
-2. Terminal 1 rodando `python mqtt_backend.py`.
-3. Terminal 2 rodando `python -m streamlit run dashboard.py`.
-
-Depois abra `http://localhost:8501` no navegador.
-
-## API FastAPI opcional
-
-A API nao e obrigatoria para o fluxo Wokwi -> MQTT -> dashboard, mas serve para testar ou integrar outro cliente HTTP.
-
-Rodar:
-
-```bash
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Endpoints:
-
-- `GET /health`
-- `POST /api/sensores`
-
-Teste rapido no navegador:
-
-```text
-http://localhost:8000/health
-```
-
-Deve retornar:
-
-```json
-{"status":"ok"}
-```
-
-## Payload MQTT / API esperado
-
-O ESP32 publica JSON neste formato:
+## Payload MQTT esperado
 
 ```json
 {
   "device_id": "SHM_NODE-XX:XX:XX:XX:XX:XX",
+  "uptime_ms": 123456,
+  "intervalo_ms": 3000,
   "ambiente": {
     "temperatura": 25.0,
     "umidade": 60.0,
@@ -273,33 +248,31 @@ O ESP32 publica JSON neste formato:
 }
 ```
 
-O backend e a API aceitam esse mesmo formato.
-
 ## Limites de alerta
 
 | Medida | Limite |
 | --- | --- |
-| Inclinacao X ou Y | maior que `5.0` |
+| Inclinacao X ou Y | maior que `5.0` graus |
 | Vento | maior que `90 km/h` |
 | Temperatura | maior que `45 C` |
 
-Se algum limite for ultrapassado, `status_global` vira `CRITICO`.
+Se qualquer limite for ultrapassado, `status_global` vira `CRITICO`.
 
 ## Banco de dados
 
-O SQLite fica em:
+Arquivo:
 
 ```text
 shm_database.db
 ```
 
-Tabela principal:
+Tabela:
 
 ```text
 leituras
 ```
 
-Campos gravados:
+Campos principais:
 
 - `timestamp`
 - `device_id`
@@ -315,68 +288,78 @@ Campos gravados:
 - `status_global`
 - `source`
 
-O campo `source` indica origem da leitura:
+Valores de `source`:
 
-- `mqtt`: dado recebido do Wokwi via broker MQTT
-- `api`: dado recebido pela API FastAPI
-- `demo`: dado gerado localmente pelo backend quando o broker nao esta acessivel
+- `mqtt`: dado real recebido do Wokwi via MQTT.
+- `demo`: dado local gerado pelo backend se o broker estiver indisponivel.
+- `api`: dado recebido pela API opcional.
+
+Para producao/demonstracao real, use registros com `source = mqtt`.
 
 ## Verificacoes rapidas
 
-### Verificar dependencias Python
+Verificar dependencias:
 
 ```bash
-python -c "import streamlit, pandas, fastapi, paho.mqtt; print('OK')"
+python -c "import streamlit, pandas, paho.mqtt.client; print('OK')"
 ```
 
-### Verificar sintaxe dos arquivos Python
+Verificar sintaxe:
 
 ```bash
-python -m py_compile main.py mqtt_backend.py dashboard.py
+python -m py_compile mqtt_backend.py dashboard.py main.py
 ```
 
-### Verificar se a API sobe
+Ver ultimas leituras no banco:
 
 ```bash
-python -m uvicorn main:app --host 127.0.0.1 --port 8000
+python -c "import sqlite3; c=sqlite3.connect('shm_database.db'); print(c.execute('select id,timestamp,source,device_id from leituras order by id desc limit 10').fetchall()); c.close()"
 ```
 
-Em outro terminal:
+Monitorar o topico MQTT por alguns segundos:
 
 ```bash
-curl http://127.0.0.1:8000/health
+python -c "import time,paho.mqtt.client as mqtt; t='shm/projeto_arthur/sensores'; c=mqtt.Client(mqtt.CallbackAPIVersion.VERSION2); c.on_connect=lambda c,u,f,r,p=None:(print('connected',r),c.subscribe(t)); c.on_message=lambda c,u,m:print(m.payload.decode()[:300]); c.connect('broker.emqx.io',1883,10); c.loop_start(); time.sleep(15); c.loop_stop(); c.disconnect()"
 ```
 
 ## Problemas comuns
 
-### O dashboard nao mostra dados
+### Dashboard nao atualiza
 
 Verifique:
 
-- o Wokwi esta rodando
-- o backend `python mqtt_backend.py` esta aberto
-- o topico MQTT no sketch e no backend e o mesmo: `shm/projeto_arthur/sensores`
-- o arquivo `shm_database.db` esta na raiz do projeto
-- o dashboard foi aberto depois que o backend gravou alguma leitura
+- Wokwi esta rodando.
+- Serial Monitor mostra `MQTT publish: OK`.
+- `mqtt_backend.py` esta rodando.
+- O topico no sketch e no backend e exatamente `shm/projeto_arthur/sensores`.
+- O Streamlit foi aberto em `http://localhost:8501`.
+
+### Backend esta rodando, mas nao entram dados do Wokwi
+
+Monitore o Serial Monitor:
+
+- `MQTT conectado: SIM`
+- `MQTT state: 0`
+- `MQTT publish: OK`
+
+Se `publish` falhar, confira internet do Wokwi, broker, topico e tamanho do payload.
 
 ### Aparecem dados demo
 
-Isso significa que o backend nao conseguiu acessar o broker MQTT naquele momento. O painel continua funcionando com dados simulados locais. Quando o broker voltar e o Wokwi estiver publicando, as leituras reais entram com `source = mqtt`.
+O backend gera demo quando nao esta conectado ao broker. Para demonstracao real, confirme que chegaram linhas `source = mqtt`.
 
 ### Wokwi nao conecta no WiFi
 
-Para simulacao no Wokwi, use:
+Use exatamente:
 
 ```cpp
 #define WIFI_SSID "Wokwi-GUEST"
 #define WIFI_PASS ""
 ```
 
-Para hardware real, troque pelo nome e senha da sua rede.
-
 ### Wokwi nao compila
 
-Confira se `libraries.txt` contem estas bibliotecas:
+`libraries.txt` deve conter:
 
 ```text
 DHT sensor library
@@ -388,17 +371,27 @@ Adafruit GFX Library
 Adafruit SSD1306
 ```
 
-### Porta do Streamlit ja esta em uso
-
-Rode em outra porta:
+### Porta do Streamlit em uso
 
 ```bash
 python -m streamlit run dashboard.py --server.port 8502
 ```
 
-### API retorna erro 422
+## API opcional
 
-O JSON enviado nao esta no formato esperado. Compare com a secao "Payload MQTT / API esperado".
+A API FastAPI nao faz parte do fluxo principal com Wokwi. Use apenas se precisar testar envio HTTP.
+
+Rodar:
+
+```bash
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Teste:
+
+```text
+http://localhost:8000/health
+```
 
 ## Autor
 

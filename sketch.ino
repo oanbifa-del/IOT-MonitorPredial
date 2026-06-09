@@ -50,9 +50,11 @@ float inc_y_filtrado = 0; // Norte/Sul
 const float ALFA = 0.2;   // Pega 20% do dado novo e 80% do historico
 const unsigned long MQTT_RETRY_INTERVAL_MS = 5000;
 const unsigned long LOOP_INTERVAL_MS = 3000;
+const unsigned int MQTT_BUFFER_SIZE = 1024;
 
 String device_id;
 unsigned long last_mqtt_attempt_ms = 0;
+unsigned long last_publish_ms = 0;
 
 void setup_wifi()
 {
@@ -133,6 +135,11 @@ float readDHTHumidity(int retries = 3)
   return NAN;
 }
 
+float calcularInclinacaoGraus(float eixoPrincipal, float eixoA, float eixoB)
+{
+  return atan2(eixoPrincipal, sqrt((eixoA * eixoA) + (eixoB * eixoB))) * 180.0 / PI;
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -154,6 +161,7 @@ void setup()
   setup_wifi();
   device_id = get_device_id();
   client.setServer(mqtt_server, 1883);
+  client.setBufferSize(MQTT_BUFFER_SIZE);
   dht.begin();
 
   Wire.begin();
@@ -177,15 +185,33 @@ void loop()
   try_reconnect_mqtt();
   client.loop();
 
+  unsigned long agora = millis();
+  if (agora - last_publish_ms < LOOP_INTERVAL_MS)
+  {
+    delay(10);
+    return;
+  }
+  last_publish_ms = agora;
+
   // 1. Leituras Brutas
   sensors_event_t a_lo, g_lo, temp_lo;
   sensors_event_t a_ns, g_ns, temp_ns;
   mpu_leste_oeste.getEvent(&a_lo, &g_lo, &temp_lo);
   mpu_norte_sul.getEvent(&a_ns, &g_ns, &temp_ns);
 
-  // 2. Aplicacao do Filtro Anti-ruido (Suaviza a linha no grafico)
-  inc_x_filtrado = (ALFA * a_lo.acceleration.x) + ((1.0 - ALFA) * inc_x_filtrado);
-  inc_y_filtrado = (ALFA * a_ns.acceleration.y) + ((1.0 - ALFA) * inc_y_filtrado);
+  // 2. Calcula a inclinacao real em graus e aplica filtro anti-ruido.
+  // MPU 0x68: eixo Leste/Oeste. MPU 0x69: eixo Norte/Sul.
+  float angulo_leste_oeste = calcularInclinacaoGraus(
+      a_lo.acceleration.x,
+      a_lo.acceleration.y,
+      a_lo.acceleration.z);
+  float angulo_norte_sul = calcularInclinacaoGraus(
+      a_ns.acceleration.y,
+      a_ns.acceleration.x,
+      a_ns.acceleration.z);
+
+  inc_x_filtrado = (ALFA * angulo_leste_oeste) + ((1.0 - ALFA) * inc_x_filtrado);
+  inc_y_filtrado = (ALFA * angulo_norte_sul) + ((1.0 - ALFA) * inc_y_filtrado);
   float inc_x = inc_x_filtrado;
   float inc_y = inc_y_filtrado;
   float inc_leste = inc_x > 0 ? inc_x : 0;
@@ -248,6 +274,8 @@ void loop()
   // 5. Montar e Enviar JSON
   StaticJsonDocument<512> doc;
   doc["device_id"] = device_id;
+  doc["uptime_ms"] = agora;
+  doc["intervalo_ms"] = LOOP_INTERVAL_MS;
 
   JsonObject ambiente = doc.createNestedObject("ambiente");
   ambiente["temperatura"] = temp_display;
@@ -267,10 +295,19 @@ void loop()
 
   String payload;
   serializeJson(doc, payload);
+  bool publicado = false;
   if (client.connected())
   {
-    client.publish(mqtt_topic, payload.c_str());
+    publicado = client.publish(mqtt_topic, payload.c_str());
   }
 
-  delay(LOOP_INTERVAL_MS);
+  Serial.print("MQTT publish: ");
+  Serial.println(publicado ? "OK" : "FALHOU");
+  Serial.print("MQTT conectado: ");
+  Serial.println(client.connected() ? "SIM" : "NAO");
+  Serial.print("MQTT state: ");
+  Serial.println(client.state());
+  Serial.print("Payload bytes: ");
+  Serial.println(payload.length());
+  Serial.println(payload);
 }

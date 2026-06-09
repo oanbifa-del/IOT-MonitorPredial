@@ -1,32 +1,24 @@
 # Arquivos principais do projeto
 
-Este documento explica rapidamente o papel de cada arquivo mais importante do repositório.
-
-| Arquivo            | O que faz                                                                                          |
-| ------------------ | -------------------------------------------------------------------------------------------------- |
-| `sketch.ino`       | Firmware do ESP32 no Wokwi. Lê os sensores, monta o JSON e publica no MQTT.                        |
-| `diagram.json`     | Montagem dos componentes no simulador Wokwi. Define pinos, ligações e módulos.                     |
-| `libraries.txt`    | Lista das bibliotecas Arduino necessárias para compilar o firmware.                                |
-| `mqtt_backend.py`  | Backend que consome o MQTT, salva as leituras no SQLite e mantém dados demo quando o broker falha. |
-| `main.py`          | API FastAPI opcional que recebe o mesmo payload do ESP32 e grava no mesmo banco SQLite.            |
-| `dashboard.py`     | Painel Streamlit que lê o SQLite e mostra métricas, gráficos e histórico.                          |
-| `README.md`        | Guia principal de instalação e execução do projeto completo.                                       |
-| `requirements.txt` | Dependências Python usadas pelo backend, API e dashboard.                                          |
-| `shm_database.db`  | Banco SQLite compartilhado entre backend, API e painel.                                            |
-
-## Fluxo dos dados
+Fluxo principal de producao:
 
 `sketch.ino` -> MQTT -> `mqtt_backend.py` -> `shm_database.db` -> `dashboard.py`
 
-`main.py` usa o mesmo banco e o mesmo formato de dados, caso você queira testar a API HTTP.
+## Essenciais
 
-## O que é essencial para rodar
+| Arquivo | O que faz |
+| --- | --- |
+| `sketch.ino` | Firmware do ESP32 no Wokwi. Le sensores, calcula inclinacao em graus e publica MQTT a cada 3 segundos. |
+| `diagram.json` | Montagem do Wokwi com ESP32, DHT22, 2 MPU6050, potenciometro, LED, buzzer e OLED. |
+| `libraries.txt` | Bibliotecas Arduino necessarias no Wokwi. |
+| `mqtt_backend.py` | Backend necessario: consome MQTT e salva as leituras no SQLite. |
+| `dashboard.py` | Painel Streamlit que le o SQLite e atualiza a cada 3 segundos. |
+| `requirements.txt` | Dependencias Python. |
+| `shm_database.db` | Banco SQLite local. Pode ser recriado automaticamente. |
 
-1. `sketch.ino`
-2. `diagram.json`
-3. `libraries.txt`
-4. `requirements.txt`
-5. `mqtt_backend.py`
-6. `dashboard.py`
+## Opcional
 
-Se esses arquivos estiverem corretos, o projeto inteiro sobe tanto no Wokwi quanto localmente.
+| Arquivo | O que faz |
+| --- | --- |
+| `main.py` | API FastAPI opcional para testes HTTP. Nao e usada no fluxo Wokwi -> dashboard. |
+| `README.md` | Guia completo para instalar, rodar e diagnosticar o projeto. |
