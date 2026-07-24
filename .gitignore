@@ -1,0 +1,29 @@
+# Ambiente virtual
+venv/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+
+# Banco de dados local
+*.db
+
+# Configurações locais do VS Code
+.vscode/
+
+# Variáveis de ambiente
+.env
+.env.*
+
+# Logs
+*.log
+
+# Arquivos temporários
+*.tmp
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de ambiente
+*.egg-info/

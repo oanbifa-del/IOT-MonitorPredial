@@ -171,6 +171,6 @@ async def receber_dados(data: PayloadSensores):
     print(f"[{timestamp}] Dado recebido de {data.device_id} | Status: {data.alertas.status_global}")
     return {
         "status": "sucesso",
-        "mensagem": "Dados armazenados com segurança",
+        "mensagem": "Dados armazenados",
         "timestamp": timestamp,
     }
