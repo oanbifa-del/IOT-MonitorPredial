@@ -1,3 +1,24 @@
+## Telas do Sistema
+
+### Dashboard
+
+<img src="prints/dashboard.jpeg" width="700">
+
+### Gráficos e monitoramento
+
+<img src="prints/grafico.jpeg" width="700">
+
+### Logs dos sensores
+
+<img src="prints/logs.jpeg" width="700">
+
+### Localização dos sensores
+
+<img src="prints/mapa.jpeg" width="700">
+
+### Simulação IoT (Wokwi)
+
+<img src="prints/simuladorIOT.jpeg" width="700">
 # SHM IoT - Monitoramento Estrutural com Wokwi
 
 Sistema de monitoramento estrutural com ESP32 no Wokwi, MQTT, backend Python, SQLite e dashboard Streamlit.
